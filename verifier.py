@@ -90,56 +90,90 @@ def read_matching_from_file(n, filename="output.txt"):
     for i in range(n):
         parts = lines[i].strip().split()
         if len(parts) != 2:
-            raise ValueError(f"INVALID (matching line {i+1} must be 'hospital student')")
+            raise ValueError(f"INVALID (matching line {i+1} in {filename} must be 'hospital student')")
         try:
             h = int(parts[0])
             s = int(parts[1])
         except ValueError:
-            raise ValueError(f"INVALID (non-integer token in matching line {i+1})")
+            raise ValueError(f"INVALID (non-integer token in matching line {i+1} in {filename})")
         pairs.append((h, s))
 
     return pairs
-
-
-# ----------------------------
-# Part (a) Validity ONLY
-# ----------------------------
 
 def check_validity(n, matching_pairs):
     hospital_seen = [False] * (n + 1)
     student_seen = [False] * (n + 1)
 
+    hospital_to_student = [0] * (n + 1)
+    student_to_hospital = [0] * (n + 1)
+
     for (h, s) in matching_pairs:
         if not (1 <= h <= n):
-            return False, f"INVALID (hospital id out of range: {h})"
+            return False, f"INVALID (hospital id out of range: {h})", None, None
         if not (1 <= s <= n):
-            return False, f"INVALID (student id out of range: {s})"
+            return False, f"INVALID (student id out of range: {s})", None, None
 
         if hospital_seen[h]:
-            return False, f"INVALID (duplicate hospital in matching: {h})"
+            return False, f"INVALID (duplicate hospital in matching: {h})", None, None
         hospital_seen[h] = True
+        hospital_to_student[h] = s
 
         if student_seen[s]:
-            return False, f"INVALID (duplicate student in matching: {s})"
+            return False, f"INVALID (duplicate student in matching: {s})", None, None
         student_seen[s] = True
+        student_to_hospital[s] = h
 
     for h in range(1, n + 1):
         if not hospital_seen[h]:
-            return False, f"INVALID (hospital {h} missing from matching)"
+            return False, f"INVALID (hospital {h} missing from matching)", None, None
     for s in range(1, n + 1):
         if not student_seen[s]:
-            return False, f"INVALID (student {s} missing from matching)"
+            return False, f"INVALID (student {s} missing from matching)", None, None
 
-    return True, "VALID"
+    return True, "VALID", hospital_to_student, student_to_hospital
+
+def check_stability(n, hospital_prefs, student_prefs, hospital_to_student, student_to_hospital):
+    rank_h = [[0] * (n + 1) for _ in range(n + 1)]
+    for h in range(1, n + 1):
+        for r, s in enumerate(hospital_prefs[h - 1]):
+            rank_h[h][s] = r
+
+    rank_s = [[0] * (n + 1) for _ in range(n + 1)]
+    for s in range(1, n + 1):
+        for r, h in enumerate(student_prefs[s - 1]):
+            rank_s[s][h] = r
+
+    for h in range(1, n + 1):
+        assigned_s = hospital_to_student[h]
+        assigned_rank = rank_h[h][assigned_s]
+
+        for s in hospital_prefs[h - 1]:
+            if rank_h[h][s] >= assigned_rank:
+                break
+
+            current_h_for_s = student_to_hospital[s]
+            if rank_s[s][h] < rank_s[s][current_h_for_s]:
+                return False, f"UNSTABLE (blocking pair: hospital {h}, student {s})"
+
+    return True, "STABLE"
 
 
 def main():
     try:
-        n, _, _ = read_preferences_from_file("input.txt")
+        n, hospital_prefs, student_prefs = read_preferences_from_file("input.txt")
         matching_pairs = read_matching_from_file(n, "output.txt")
 
-        valid, msg = check_validity(n, matching_pairs)
-        print(msg)
+        valid, vmsg, h_to_s, s_to_h = check_validity(n, matching_pairs)
+        if not valid:
+            print(vmsg)
+            return
+
+        stable, smsg = check_stability(n, hospital_prefs, student_prefs, h_to_s, s_to_h)
+        if not stable:
+            print(smsg)
+            return
+
+        print("VALID STABLE")
 
     except ValueError as e:
         print(str(e))
@@ -147,4 +181,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
