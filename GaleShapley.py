@@ -20,4 +20,27 @@ def gale_shapley(n, hospital_preferences, student_preferences):
             hospital_pairings[current_hospital] = applicant
         else: #a prefers h to her/his current assignment h'
             assigned_hospital = student_pairings[applicant]
-            
+
+            prefers_new_hospital = False
+            for preferred_hospital in student_preferences[applicant - 1]:
+                if preferred_hospital == current_hospital:
+                    prefers_new_hospital = True
+                    break
+                if preferred_hospital == assigned_hospital:
+                    prefers_new_hospital = False
+                    break
+
+            if prefers_new_hospital:
+                hospital_pairings[assigned_hospital] = 0
+                student_pairings[applicant] = current_hospital
+                hospital_pairings[current_hospital] = applicant
+
+                if next_proposal[assigned_hospital] < n:
+                    free_hospitals_stack.append(assigned_hospital)
+
+            else:
+                if next_proposal[current_hospital] < n:
+                    free_hospitals_stack.append(current_hospital)
+
+    return hospital_pairings[1:]
+
